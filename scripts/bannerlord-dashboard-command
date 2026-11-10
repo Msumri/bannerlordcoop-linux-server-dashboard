@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Root-owned command gate. Do not make this file writable by the dashboard user.
+set -euo pipefail
+# Never inherit a deleted or inaccessible caller working directory.
+cd /
+COOP_BIN="/usr/local/bin/coop"
+SAVE_DIR="/srv/bannerlordcoop/server/server-data/Game Saves"
+MOD_CONFIG="/srv/bannerlordcoop/server/server-data/mod-config.json"
+NODE_BIN="/usr/bin/node"
+WORLD_SETTINGS_SCRIPT="/opt/bannerlord-dashboard/scripts/world-settings.mjs"
+if [[ ! -x "$COOP_BIN" ]]; then echo "coop executable not found: $COOP_BIN" >&2; exit 127; fi
+if (($# < 1)); then echo "missing action" >&2; exit 2; fi
+action="$1"; shift
+case "$action" in
+  status) (($# == 0)) || exit 2; exec "$COOP_BIN" status --json ;;
+  doctor) (($# == 0)) || exit 2; exec "$COOP_BIN" doctor --json ;;
+  version) (($# == 0)) || exit 2; exec "$COOP_BIN" version --json ;;
+  campaigns) (($# == 0)) || exit 2; exec "$COOP_BIN" campaign list --json ;;
+  mods) (($# == 0)) || exit 2; exec "$COOP_BIN" mods --json ;;
+  mod-catalog) (($# == 0)) || exit 2; exec "$COOP_BIN" mods catalog --json ;;
+  backups) (($# == 0)) || exit 2; exec "$COOP_BIN" backup list --json ;;
+  config) (($# == 0)) || exit 2; exec "$COOP_BIN" config --list --json ;;
+  world-settings-read)
+    (($# == 0)) || exit 2
+    [[ -f "$WORLD_SETTINGS_SCRIPT" ]] || { echo "World settings script not found: $WORLD_SETTINGS_SCRIPT" >&2; exit 2; }
+    BANNERLORD_MOD_CONFIG="$MOD_CONFIG" exec "$NODE_BIN" "$WORLD_SETTINGS_SCRIPT" read ;;
+  world-settings-write)
+    (($# == 1)) || exit 2
+    [[ "$1" =~ ^[A-Za-z0-9+/]+=*$ ]] || { echo "Invalid world settings payload" >&2; exit 2; }
+    [[ -f "$WORLD_SETTINGS_SCRIPT" ]] || { echo "World settings script not found: $WORLD_SETTINGS_SCRIPT" >&2; exit 2; }
+    BANNERLORD_MOD_CONFIG="$MOD_CONFIG" exec "$NODE_BIN" "$WORLD_SETTINGS_SCRIPT" write "$1" ;;
+  logs) (($# == 0)) || exit 2; exec "$COOP_BIN" logs -n 180 ;;
+  steam) (($# == 0)) || exit 2; exec "$COOP_BIN" steam status --json ;;
+  save-list)
+    (($# == 0)) || exit 2
+    [[ -d "$SAVE_DIR" ]] || { echo "Save directory not found: $SAVE_DIR" >&2; exit 2; }
+    find "$SAVE_DIR" -maxdepth 1 -type f \( -iname '*.sav' -o -iname '*.json' \) -printf '%f\n' | LC_ALL=C sort
+    ;;
+  save-read)
+    (($# == 2)) || exit 2
+    [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9\ _.-]{0,63}$ ]] || exit 2
+    [[ "$2" == "sav" || "$2" == "json" ]] || exit 2
+    file="$SAVE_DIR/$1.$2"
+    [[ -f "$file" && ! -L "$file" ]] || { echo "Save file not found: $file" >&2; exit 2; }
+    exec cat -- "$file"
+    ;;
+  save-import)
+    (($# == 1)) || exit 2
+    [[ "$1" =~ ^/tmp/bannerlord-dashboard-import-[A-Za-z0-9]+$ ]] || { echo "Invalid temporary import directory" >&2; exit 2; }
+    [[ -d "$1" && ! -L "$1" ]] || exit 2
+    shopt -s nullglob
+    sav_files=("$1"/*.sav); json_files=("$1"/*.json)
+    ((${#sav_files[@]} == 1 && ${#json_files[@]} == 1)) || { echo "Import requires exactly one .sav and one matching .json file" >&2; exit 2; }
+    sav_base="$(basename "${sav_files[0]}")"; sav_base="${sav_base%.sav}"
+    json_base="$(basename "${json_files[0]}")"; json_base="${json_base%.json}"
+    [[ "$sav_base" == "$json_base" ]] || { echo "The .sav and .json filenames do not match" >&2; exit 2; }
+    [[ "$sav_base" =~ ^[A-Za-z0-9][A-Za-z0-9\ _.-]{0,63}$ ]] || exit 2
+    # Import is deliberately allowed to replace a same-named save. The manager
+    # handles the stop/backup/copy/chown workflow; --yes prevents a TTY prompt.
+    exec "$COOP_BIN" --yes import-save "$1" ;;
+  cheat-mode)
+    (($# == 0)) || exit 2
+    exec "$COOP_BIN" config --get CHEAT_MODE
+    ;;
+  cheat-console)
+    (($# == 1)) || exit 2
+    cheat_re="^coop\.(debug\.[A-Za-z0-9_.]+|unstuck)([[:space:]][A-Za-z0-9_[:space:].,:|+\"'-]+)?$"
+    [[ "$1" =~ $cheat_re ]] || { echo "Only Coop debug commands and coop.unstuck can be sent from this dashboard" >&2; exit 2; }
+    exec "$COOP_BIN" console "$1" ;;
+  start|stop|restart|save|update|rollback)
+    (($# == 0)) || exit 2
+    exec "$COOP_BIN" "$action" ;;
+  backup)
+    if (($# == 0)); then exec "$COOP_BIN" backup; fi
+    if (($# == 2)) && [[ "$1" == "--note" ]]; then
+      [[ "$2" =~ ^[A-Za-z0-9\ .,_:-]{1,100}$ ]] || exit 2
+      exec "$COOP_BIN" backup --note "$2"
+    fi
+    exit 2 ;;
+  campaign-use|campaign-new)
+    (($# == 2)) && [[ "$2" == "--yes" ]] || exit 2
+    [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9\ _.-]{0,79}$ ]] || exit 2
+    if [[ "$action" == campaign-use ]]; then exec "$COOP_BIN" campaign use "$1" --yes; else exec "$COOP_BIN" campaign new "$1" --yes; fi ;;
+  mod-add|mod-remove)
+    (($# == 2)) && [[ "$2" == "--yes" ]] || exit 2
+    [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9\ _.-]{0,179}$ ]] || exit 2
+    if [[ "$action" == mod-add ]]; then exec "$COOP_BIN" mods add "$1" --yes; else exec "$COOP_BIN" mods remove "$1" --yes; fi ;;
+  mod-update)
+    (($# == 1)) && [[ "$1" == "--yes" ]] || exit 2
+    exec "$COOP_BIN" mods update --yes ;;
+  backup-restore)
+    (($# == 2)) && [[ "$2" == "--yes" ]] || exit 2
+    [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$ ]] || exit 2
+    exec "$COOP_BIN" backup restore "$1" --yes ;;
+  ban)
+    (($# >= 1 && $# <= 3)) || exit 2
+    [[ "$1" =~ ^7656119[0-9]{10}$ ]] || exit 2
+    if (($# == 1)); then exec "$COOP_BIN" ban "$1"; fi
+    (($# == 3)) && [[ "$2" == "--name" ]] || exit 2
+    [[ "$3" =~ ^[A-Za-z0-9\ _.-]{1,80}$ ]] || exit 2
+    exec "$COOP_BIN" ban "$1" --name "$3" ;;
+  unban)
+    (($# == 1)) && [[ "$1" =~ ^7656119[0-9]{10}$ ]] || exit 2
+    exec "$COOP_BIN" unban "$1" ;;
+  config-set)
+    (($# == 3)) && [[ "$3" == "--apply" ]] || exit 2
+    [[ "$1" =~ ^[A-Z][A-Z0-9_]{0,59}$ ]] || exit 2
+    [[ ! "$1" =~ (PASSWORD|SECRET|TOKEN|CREDENTIAL|STEAM) ]] || exit 2
+    [[ "$2" =~ ^[A-Za-z0-9\ ./,:_@+-]{1,200}$ ]] || exit 2
+    exec "$COOP_BIN" config --set "$1=$2" --apply --yes ;;
+  console)
+    (($# == 1)) || exit 2
+    [[ "$1" =~ ^(status|players|save|help|say\ [A-Za-z0-9\ .,!?\'-]{1,200}|kick\ [A-Za-z0-9_-]{1,40})$ ]] || exit 2
+    exec "$COOP_BIN" console "$1" ;;
+  *) echo "action not allowed" >&2; exit 2 ;;
+esac

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101114"><title>Bannerlord Server Control</title>
+<script type="module" src="/src/main.js"></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="crest">B</div><div><strong>BANNERLORD</strong><small>SERVER CONTROL</small></div></div>
+    <div class="nav-label">MANAGEMENT</div>
+    <button class="nav active" data-tab="overview"><span>◫</span> Overview</button>
+    <button class="nav" data-tab="campaigns"><span>◎</span> Campaigns</button>
+    <button class="nav" data-tab="saves"><span>⇧</span> Save Manager</button>
+    <button class="nav" data-tab="cheats"><span>✦</span> Cheats</button>
+    <button class="nav" data-tab="mods"><span>⬡</span> Mods</button>
+    <button class="nav" data-tab="backups"><span>◷</span> Backups</button>
+    <button class="nav" data-tab="settings"><span>⚙</span> Settings</button>
+    <div class="sidebar-bottom"><div class="secure-dot"></div><div><b>Local network only</b><small>No account or password</small></div></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div><div class="eyebrow">SERVER MANAGEMENT</div><h1 id="page-title">Overview</h1></div><div class="top-actions"><span class="access-pill"><i></i> LOCAL NETWORK</span><button class="icon-btn" id="refresh" title="Refresh">↻</button></div></header>
+    <section id="notice" class="notice hidden"></section>
+    <section id="tab-overview" class="tab-panel">
+      <div class="hero-row">
+        <div class="server-card"><div class="card-top"><span class="eyebrow">CAMPAIGN SERVER</span><span id="status-pill" class="status-pill unknown">CHECKING</span></div><h2 id="server-name">Bannerlord Co-op</h2><p id="server-subtitle">Loading server information…</p><div class="server-meta"><div><small>GAME PORT</small><b id="game-port">—</b></div><div><small>CAMPAIGN</small><b id="campaign-name">—</b></div><div><small>BUILD</small><b id="build-name">—</b></div></div><div class="controls"><button class="btn primary" data-action="start">▶ Start</button><button class="btn danger" data-action="stop">■ Stop</button><button class="btn" data-action="restart">↻ Restart</button><button class="btn" data-action="save">▣ Save</button></div></div>
+        <div class="side-stack"><div class="metric-card"><div class="metric-icon">⌁</div><small>SERVER STATUS</small><strong id="metric-status">—</strong><span id="metric-updated">Waiting for status</span></div><div class="metric-card"><div class="metric-icon">♙</div><small>STEAM SESSION</small><strong id="steam-status">Checking</strong><span>Workshop authentication</span></div></div>
+      </div>
+      <div class="section-heading"><div><div class="eyebrow">LIVE ACTIVITY</div><h2>Server console</h2></div><span class="live-label"><i></i> AUTO REFRESH · 5 SEC</span></div>
+      <div class="console-card"><div class="console-head"><div><i></i><i></i><i></i><span>SERVER OUTPUT</span></div><button class="text-btn" id="clear-logs">Clear view</button></div><pre id="logs">Connecting to server log…</pre><form id="console-form" class="console-input"><span>›</span><input id="console-command" placeholder="Allowed commands: status, players, say, kick…" maxlength="240"><button class="btn primary" type="submit">Send</button></form></div>
+      <div class="section-heading"><div><div class="eyebrow">SYSTEM HEALTH</div><h2>Diagnostics</h2></div><button class="text-btn" id="run-doctor">Run diagnostics ↗</button></div><div id="doctor-result" class="diagnostics">Run diagnostics to check Docker, server process, Steam session and backups.</div>
+    </section>
+    <section id="tab-campaigns" class="tab-panel hidden"><div class="section-heading"><div><div class="eyebrow">WORLD MANAGEMENT</div><h2>Campaigns</h2></div><button class="btn primary" id="new-campaign">＋ New campaign</button></div><div id="campaign-list" class="data-card">Loading campaigns…</div></section>
+    <section id="tab-saves" class="tab-panel hidden">
+      <div class="section-heading"><div><div class="eyebrow">CAMPAIGN FILES</div><h2>Save manager</h2></div><button class="btn" id="refresh-saves">↻ Refresh saves</button></div>
+      <div class="warning-card">Each co-op campaign uses a matching <b>.sav</b> world file and <b>.json</b> player/session file. Download both together and keep their names identical. Imports use the server manager's <code>coop import-save</code> command; existing campaigns are never overwritten.</div>
+      <div class="upload-card"><div><h3>Import a campaign save</h3><p>Select exactly two matching files, for example <code>MyCampaign.sav</code> and <code>MyCampaign.json</code>. The manager validates and imports them.</p></div><form id="save-upload-form"><input id="save-files" type="file" accept=".sav,.json,application/octet-stream,application/json" multiple required><button class="btn primary" type="submit">↑ Import save pair</button></form></div>
+      <div id="save-list" class="data-card">Loading campaign save files…</div>
+      <div class="small-note">Save directory detected from your installation: <code>/srv/bannerlordcoop/server/server-data/Game Saves</code>. Files are accessed through a restricted root-owned helper.</div>
+    </section>
+    <section id="tab-cheats" class="tab-panel hidden">
+      <div class="section-heading"><div><div class="eyebrow">CO-OP DEBUG CONSOLE</div><h2>Cheat manager</h2></div><a class="text-btn" href="https://bannerlordcoop.com/cheats" target="_blank" rel="noopener">Official cheat directory ↗</a></div>
+      <div class="warning-card">Only server-capable <code>coop.debug.*</code> and <code>coop.unstuck</code> commands are sent from this dashboard. Client-only commands cannot run on the dedicated server. Vanilla <code>campaign.*</code> cheats are disabled by Bannerlord Coop.</div>
+      <div class="cheat-mode-card"><div><b>Native game cheat mode</b><small id="cheat-mode-description">Checking CHEAT_MODE setting…</small></div><button class="btn" id="cheat-mode-toggle" disabled>Checking…</button></div>
+      <div class="section-heading"><div><div class="eyebrow">FEATURED SERVER COMMANDS</div><h2>Command directory</h2></div></div>
+      <div class="cheat-search"><input id="cheat-search" placeholder="Search commands, categories, descriptions…"><span id="cheat-count"></span></div>
+      <div id="cheat-list" class="cheat-list"></div>
+      <div class="section-heading"><div><div class="eyebrow">ADVANCED</div><h2>Run a server cheat</h2></div></div>
+      <form id="cheat-form" class="console-input cheat-input"><span>›</span><input id="cheat-command" placeholder='coop.debug.hero.list "Name"' maxlength="500" required><button class="btn primary" type="submit">Run command</button></form>
+      <div id="cheat-output" class="diagnostics">Choose a featured command or enter a server-capable Coop debug command.</div>
+    </section>
+    <section id="tab-mods" class="tab-panel hidden"><div class="section-heading"><div><div class="eyebrow">WORKSHOP CONTENT</div><h2>Installed mods</h2></div><button class="btn primary" id="add-mod">＋ Add mod</button></div><div id="mod-list" class="data-card">Loading mods…</div><div class="section-heading"><div><div class="eyebrow">MAINTENANCE</div><h2>Mod updates</h2></div><button class="btn" data-action="mod-update">Check / install updates</button></div></section>
+    <section id="tab-backups" class="tab-panel hidden"><div class="section-heading"><div><div class="eyebrow">RECOVERY</div><h2>Backups</h2></div><button class="btn primary" data-action="backup">＋ Create backup</button></div><div id="backup-list" class="data-card">Loading backups…</div></section>
+    <section id="tab-world" class="tab-panel hidden">
+      <div class="section-heading"><div><div class="eyebrow">BANNERLORD CO-OP MOD</div><h2>World settings</h2></div><div class="row-actions"><button class="btn" id="world-refresh">↻ Reload</button><button class="btn primary" id="world-save">Save world settings</button></div></div>
+      <div class="warning-card">These settings are read from <code>mod-config.json</code> and applied by the hosting side at the next host boot. Saving here does not restart the server or change the current session. A timestamped backup is created before every save.</div>
+      <div id="world-settings-list"><div class="empty">Loading world settings…</div></div>
+      <div class="small-note">Config file: <code>/srv/bannerlordcoop/server/server-data/mod-config.json</code>. This page edits Coop mod world/gameplay options, not dedicated-server ports, passwords, or autosaves.</div>
+    </section>
+    <section id="tab-settings" class="tab-panel hidden"><div class="section-heading"><div><div class="eyebrow">SERVER CONFIGURATION</div><h2>Settings</h2></div></div><div class="warning-card">Configuration changes can restart the game server. The manager validates settings and applies them through its own CLI.</div><div id="settings-list" class="data-card">Loading settings…</div><div class="section-heading"><div><div class="eyebrow">SOFTWARE</div><h2>Server version</h2></div><button class="btn" data-action="update">Check / install update</button><button class="btn" data-action="rollback">Rollback</button></div><div id="version-info" class="data-card">Loading version…</div></section>
+    <footer>Bannerlord Server Control <span>·</span> Self-hosted <span>·</span> Powered by Coop Server Manager</footer>
+  </main>
+</div>
+<dialog id="action-dialog"><form method="dialog" class="dialog-card"><button class="dialog-close" value="cancel">×</button><div class="eyebrow">CONFIRM ACTION</div><h2 id="dialog-title">Are you sure?</h2><p id="dialog-text">This action will affect your server.</p><div class="dialog-actions"><button class="btn" value="cancel">Cancel</button><button class="btn primary" id="dialog-confirm" value="default">Continue</button></div></form></dialog>
+<div id="toast" class="toast"></div>
+</body></html>

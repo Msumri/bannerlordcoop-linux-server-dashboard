@@ -1,5 +1,6 @@
 # Bannerlord Server Dashboard
 
+## this is a community project not made or supported by the Coop mod team.
 A self-hosted web dashboard for the [Bannerlord Coop Server Manager](https://github.com/PlodyIce/bannerlordcoop-server-manager). The dashboard provides server controls, campaign and mod management, backups, save import/export, player moderation, a restricted Coop console, and world settings.
 
 ## One-command installation
